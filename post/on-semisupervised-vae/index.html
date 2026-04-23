@@ -1,0 +1,219 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=generator content="Source Themes Academic 4.4.0"><meta name=author content="Giuseppe Manco"><meta name=description content="In what follows I'll try to explain my basic understanding and interepretation of the semi-supervised framework based on Variational Autoencoders, as described in [1]. I shall assume a vector notation where bold symbols $\mathbf{a}$ represent vectors, whose $j$-th component can be represented as $a_j$.
+The starting point of the framework is to consider a dataset \(D = S \cup U\), where:
+ \(S = \{(\mathbf{x}_1, \mathbf{y}_1), \ldots, (\mathbf{x}_n, \mathbf{y}_n)\}\),
+ \(U = \{\mathbf{x}_{n&#43;1}, \ldots, \mathbf{x}_{n&#43;m}\}\),  with \(\mathbf{x}_i \in \mathbb{R}^N\) and \(\mathbf{y}_i \in \{0,1\}^C\) represents a one-hot encoding of a class in \(\{1, \ldots, C\}\)."><link rel=alternate hreflang=en-us href=https://gmanco.github.io/post/on-semisupervised-vae/><meta name=theme-color content=#2962ff><link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/academicons/1.8.6/css/academicons.min.css integrity="sha256-uFVgMKfistnJAfoCUQigIl+JfUaP47GrRKjf6CTPVmw=" crossorigin=anonymous><link rel=stylesheet href=https://use.fontawesome.com/releases/v5.6.0/css/all.css integrity=sha384-aOkxzJ5uQz7WBObEZcHvV5JvRW3TUc2rNPA7pe3AwnsUohiw1Vj2Rgx2KSOkF5+h crossorigin=anonymous><link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.2.5/jquery.fancybox.min.css integrity="sha256-ygkqlh3CYSUri3LhQxzdcm0n1EQvH2Y+U5S2idbLtxs=" crossorigin=anonymous><link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/github.min.css crossorigin=anonymous title=hl-light><link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/dracula.min.css crossorigin=anonymous title=hl-dark disabled><link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.2.0/leaflet.css integrity="sha512-M2wvCLH6DSRazYeZRIm1JnYyh22purTM+FDB5CsyxtQJYeKq83arPe5wgbNmcFXGqiSH2XR8dT/fJISVA1r/zQ==" crossorigin=anonymous><link rel=stylesheet href="https://fonts.googleapis.com/css?family=Montserrat:400,700|Roboto:400,400italic,700|Roboto+Mono&display=swap"><link rel=stylesheet href=/css/academic.min.04a87a1cb9027e3c50f566322527c56f.css><link rel=stylesheet href=/css/academic.a4ec9c1081825f8548c2274d7b44e21c.css><link rel=manifest href=/index.webmanifest><link rel=icon type=image/png href=/img/icon-32.png><link rel=apple-touch-icon type=image/png href=/img/icon-192.png><link rel=canonical href=https://gmanco.github.io/post/on-semisupervised-vae/><meta property=twitter:card content=summary_large_image><meta property=twitter:site content=@beman><meta property=twitter:creator content=@beman><meta property=og:site_name content="Giuseppe Manco"><meta property=og:url content=https://gmanco.github.io/post/on-semisupervised-vae/><meta property=og:title content="Some notes on the Semi-Supervised Learning of Variational Autoencoders | Giuseppe Manco"><meta property=og:description content="In what follows I'll try to explain my basic understanding and interepretation of the semi-supervised framework based on Variational Autoencoders, as described in [1]. I shall assume a vector notation where bold symbols $\mathbf{a}$ represent vectors, whose $j$-th component can be represented as $a_j$.
+The starting point of the framework is to consider a dataset \(D = S \cup U\), where:
+ \(S = \{(\mathbf{x}_1, \mathbf{y}_1), \ldots, (\mathbf{x}_n, \mathbf{y}_n)\}\),
+ \(U = \{\mathbf{x}_{n&#43;1}, \ldots, \mathbf{x}_{n&#43;m}\}\),  with \(\mathbf{x}_i \in \mathbb{R}^N\) and \(\mathbf{y}_i \in \{0,1\}^C\) represents a one-hot encoding of a class in \(\{1, \ldots, C\}\)."><meta property=og:image content=https://gmanco.github.io/post/on-semisupervised-vae/featured.png><meta property=twitter:image content=https://gmanco.github.io/post/on-semisupervised-vae/featured.png><meta property=og:locale content=en-us><meta property=article:published_time content=2019-09-10T18:10:09&#43;02:00><meta property=article:modified_time content=2019-09-10T18:10:09&#43;02:00><title>Some notes on the Semi-Supervised Learning of Variational Autoencoders | Giuseppe Manco</title></head><body id=top data-spy=scroll data-offset=70 data-target=#TableOfContents><aside class=search-results id=search><div class=container><section class=search-header><div class="row no-gutters justify-content-between mb-3"><div class=col-6><h1>Search</h1></div><div class="col-6 col-search-close"><a class=js-search href=#><i class="fas fa-times-circle text-muted" aria-hidden=true></i></a></div></div><div id=search-box><input name=q id=search-query placeholder=Search... autocapitalize=off autocomplete=off autocorrect=off spellcheck=false type=search></div></section><section class=section-search-results><div id=search-hits></div></section></div></aside><nav class="navbar navbar-light fixed-top navbar-expand-lg py-0 compensate-for-scrollbar" id=navbar-main><div class=container><a class=navbar-brand href=/>Giuseppe Manco</a>
+<button type=button class=navbar-toggler data-toggle=collapse data-target=#navbar aria-controls=navbar aria-expanded=false aria-label="Toggle navigation">
+<span><i class="fas fa-bars"></i></span></button><div class="collapse navbar-collapse" id=navbar><ul class="navbar-nav mr-auto"><li class=nav-item><a class=nav-link href=/#research><span>Research Topics</span></a></li><li class=nav-item><a class=nav-link href=/#posts><span>Posts</span></a></li><li class=nav-item><a class=nav-link href=/#talks><span>Talks</span></a></li><li class=nav-item><a class=nav-link href=/#featured><span>Publications</span></a></li><li class=nav-item><a class=nav-link href=/courses/><span>Teaching</span></a></li><li class=nav-item><a class=nav-link href=/#contact><span>Contact</span></a></li></ul><ul class="navbar-nav ml-auto"><li class=nav-item><a class="nav-link js-search" href=#><i class="fas fa-search" aria-hidden=true></i></a></li><li class=nav-item><a class="nav-link js-dark-toggle" href=#><i class="fas fa-moon" aria-hidden=true></i></a></li></ul></div></div></nav><article class=article itemscope itemtype=http://schema.org/Article><div class="article-container pt-3"><h1 itemprop=name>Some notes on the Semi-Supervised Learning of Variational Autoencoders</h1><meta content="2019-09-10 18:10:09 &#43;0200 CEST" itemprop=datePublished><meta content="2019-09-10 18:10:09 &#43;0200 CEST" itemprop=dateModified><div class=article-metadata><span class=article-date><time>Sep 10, 2019</time></span>
+<span class=middot-divider></span><span class=article-reading-time>9 min read</span><div class=share-box aria-hidden=true><ul class=share><li><a href="https://twitter.com/intent/tweet?url=https://gmanco.github.io/post/on-semisupervised-vae/&amp;text=Some%20notes%20on%20the%20Semi-Supervised%20Learning%20of%20Variational%20Autoencoders" target=_blank rel=noopener class=share-btn-twitter><i class="fab fa-twitter"></i></a></li><li><a href="https://www.facebook.com/sharer.php?u=https://gmanco.github.io/post/on-semisupervised-vae/&amp;t=Some%20notes%20on%20the%20Semi-Supervised%20Learning%20of%20Variational%20Autoencoders" target=_blank rel=noopener class=share-btn-facebook><i class="fab fa-facebook-f"></i></a></li><li><a href="mailto:?subject=Some%20notes%20on%20the%20Semi-Supervised%20Learning%20of%20Variational%20Autoencoders&amp;body=https://gmanco.github.io/post/on-semisupervised-vae/" target=_blank rel=noopener class=share-btn-email><i class="fas fa-envelope"></i></a></li><li><a href="https://www.linkedin.com/shareArticle?url=https://gmanco.github.io/post/on-semisupervised-vae/&amp;title=Some%20notes%20on%20the%20Semi-Supervised%20Learning%20of%20Variational%20Autoencoders" target=_blank rel=noopener class=share-btn-linkedin><i class="fab fa-linkedin-in"></i></a></li><li><a href="https://web.whatsapp.com/send?text=Some%20notes%20on%20the%20Semi-Supervised%20Learning%20of%20Variational%20Autoencoders%20https://gmanco.github.io/post/on-semisupervised-vae/" target=_blank rel=noopener class=share-btn-whatsapp><i class="fab fa-whatsapp"></i></a></li><li><a href="https://service.weibo.com/share/share.php?url=https://gmanco.github.io/post/on-semisupervised-vae/&amp;title=Some%20notes%20on%20the%20Semi-Supervised%20Learning%20of%20Variational%20Autoencoders" target=_blank rel=noopener class=share-btn-weibo><i class="fab fa-weibo"></i></a></li></ul></div></div></div><div class="article-header container-fluid featured-image-wrapper mt-4 mb-4" style=max-width:4597px;max-height:3734px><div style=position:relative><img src=/post/on-semisupervised-vae/featured.png alt class=featured-image></div></div><div class=article-container><div class=article-style itemprop=articleBody><p>In what follows I'll try to explain my basic understanding and interepretation of the semi-supervised framework based on Variational Autoencoders, as described in <a href=#ref>[1]</a>. I shall assume a vector notation where bold symbols $\mathbf{a}$ represent vectors, whose $j$-th component can be represented as $a_j$.</p><p>The starting point of the framework is to consider a dataset <span class=math>\(D = S \cup U\)</span>, where:</p><ul><li><span class=math>\(S = \{(\mathbf{x}_1, \mathbf{y}_1), \ldots, (\mathbf{x}_n, \mathbf{y}_n)\}\)</span>,<br></li><li><span class=math>\(U = \{\mathbf{x}_{n+1}, \ldots, \mathbf{x}_{n+m}\}\)</span>,</li></ul><p>with <span class=math>\(\mathbf{x}_i \in \mathbb{R}^N\)</span> and <span class=math>\(\mathbf{y}_i \in \{0,1\}^C\)</span> represents a one-hot encoding of a class in <span class=math>\(\{1, \ldots, C\}\)</span>.</p><p>The basic assumption of variational autoencoders is that data is generated according to a density function <span class=math>\(p_\theta(\mathbf{x}| \mathbf{z})\)</span>, where <span class=math>\(\mathbf{z}\in \mathbb{R}^K\)</span> is a latent variables governing the distribution of <span class=math>\(\mathbf{x}\)</span>. <span class=math>\(\theta\)</span> represents a model parameter. The above density function can be modeled through a Neural network: thus <span class=math>\(\theta\)</span> represents all the network weights. An example PyTorch snippet, where the density is be modeled as a softmax over a simple linear layer, is illustrated below.</p><pre><code class=language-python>import torch
+import torch.nn as nn
+
+class Decoder(nn.Module):
+    def __init__(self, latent_size,num_classes,out_size):
+        super(Decoder, self).__init__()
+
+        self.linear_layer = nn.Linear(latent_size + num_classes, out_size)
+        nn.init.xavier_normal_(self.layer.weight)
+
+        self.activation = nn.Sigmoid(dim=-1)
+
+    def forward(self, z):
+      	return self.activation(self.linear_layer(z))
+</code></pre><p>Here, we are assuming $\mathbf{x}$ binary and consequently the reconstruction exploits a bernoullian distribution for each feature.</p><p>Let's see how the generative framework can model the likelihood of the data and help us develop a semi-supervised classifier.</p><h2 id=unsupervised-examples>Unsupervised examples</h2><p>First, let us consider <span class=math>\(\mathbf{x}\in U\)</span>. When <span class=math>\(\mathbf{y}\)</span> is unknown, we can consider it as a latent variable as well. Both <span class=math>\(\mathbf{y}\)</span> and <span class=math>\(\mathbf{z}\)</span> assume a prior distribution, given by</p><p><span class=math>\[\begin{split}
+\mathbf{z} \sim & \mathcal{N}(\mathbf{0},I_K)\\
+\mathbf{y} \sim & \mathit{Cat}(\boldsymbol\pi)
+\end{split}\]</span></p><p>Here, <span class=math>\(\boldsymbol\pi\)</span> is a prior multinomial distribution over <span class=math>\(\{1, \ldots, C\}\)</span>.</p><p>In such a case, we can extend the generative setting where data samples $\mathbf{x}$ are assumed to be generated by the conditional <span class=math>\(p_\theta(\mathbf{x}| \mathbf{z},\mathbf{y})\)</span> through the relationship</p><p><span class=math>\[
+\begin{equation}\label{average}\tag{1}
+p(\mathbf{x}) = \int p_\theta(\mathbf{x}| \mathbf{z}, \mathbf{y}) p(\mathbf{z})p(\mathbf{y}) \mathrm{d} \mathbf{z} \mathrm{d} \mathbf{y}
+\end{equation}
+\]</span></p><p>In principle, the <span class=math>\(\theta\)</span> parameter can be chosen to maximize the evidence on <span class=math>\(D\)</span>, i.e. by optimizing <span class=math>\(\log p(\mathbf{x})\)</span>. However, this approach is not feasible because it requires averaging over all possible <span class=math>\(\mathbf{z}\)</span> pairs. We can approximate the likelihood by sampling a subset of $\mathbf{z}$ latent data points and then averaging over them. Again, this workaround exhibits the drawback that pure random sampling is exposed to high variance. The idea of Variational Autoencoders is to &quot;guide&quot; the sampling by exploiting the evidence: instead of freely choosing $\mathbf{z},\mathbf{y}$, we build a sampler <span class=math>\(q_\phi(\mathbf{z},\mathbf{y}|\mathbf{x})\)</span> that tunes the probability of <span class=math>\(\mathbf{z},\mathbf{y}\)</span> according to $\mathbf{x}$. In practice, $q_\phi$ <em>encodes</em> the information regarding <span class=math>\(\mathbf{x}\)</span> into the most probable <span class=math>\(\mathbf{z},\mathbf{y}\)</span> latent variables.</p><p>We can factorize the decoder as <span class=math>\(q_\phi(\mathbf{z},\mathbf{y}| \mathbf{x}) = q_\varphi(\mathbf{z}|\mathbf{x},\mathbf{y})q_\vartheta(\mathbf{y}|\mathbf{x})\)</span>, where</p><p><span class=math>\[\begin{split}
+q_\varphi(\mathbf{z}|\mathbf{x},\mathbf{y}) \equiv & \mathcal{N}(\mathbf{z}| \boldsymbol\mu_\varphi(\mathbf{x},\mathbf{y}), \boldsymbol\sigma_\varphi(\mathbf{x},\mathbf{y})\cdot I_K)\\
+q_\vartheta(\mathbf{y}|\mathbf{x}) \equiv & \mathit{Cat}(\mathbf{y}|\boldsymbol\pi_\vartheta(\mathbf{x})),
+\end{split}\]</span></p><p>Here, the parameters <span class=math>\(\boldsymbol\mu_\varphi(\mathbf{x},\mathbf{y}), \boldsymbol\sigma_\varphi(\mathbf{x},\mathbf{y})\)</span> and <span class=math>\(\boldsymbol\pi_\vartheta(\mathbf{x})\)</span> represent neural functions parameterized by $\varphi$ and $\vartheta$, respectively.
+Again, a PyTorch snippet is given below, where the two encoders are exemplified. Concerning <span class=math>\(q_\varphi(\mathbf{z}|\mathbf{x}, \mathbf{y})\)</span>, we have:</p><pre><code class=language-python>class Encoder_z(nn.Module):
+    def __init__(self, input_size,latent_size):
+        super(Decoder, self).__init__()
+				
+        self.latent_size = latent_size
+        
+        self.linear_layer = nn.Linear(input_size, 2*latent_size)
+        nn.init.xavier_normal_(self.linear_layer.weight)
+        
+    def _sample_latent(self, mu_q, logvar_q):
+        var_q = torch.exp(logvar_q)
+        epsilon = torch.randn(var_q.size(),requires_grad=False).to(var_q.device)
+
+        return mu_q + epsilon*var_q
+        
+    def forward(self, x, y):
+      	input = torch.cat([x,y],dim=-1)
+        temp_out = self.linear_layer(input)
+    
+        mu_q = temp_out[:, :self.latent_size]
+        logvar_q = temp_out[:, self.latent_size:]
+
+        z = self._sample_latent(mu_q, logvar_q)
+
+        return z, mu_q, logvar_q
+​```
+</code></pre><p>The computation within this class is a variable <span class=math>\(\mathbf{z}\sim q_\varphi(\cdot |\mathbf{x},\mathbf{y})\)</span>, as well as the parameters of the variational (gaussian) distribution <span class=math>\(\boldsymbol\mu\)</span> and <span class=math>\(\boldsymbol\sigma\)</span>.
+Here, we are exploiting the reparameterization trick: given a variable <span class=math>\(\boldsymbol\epsilon \sim \mathcal{N}(\mathbf{0},I_K)\)</span>, the transformation <span class=math>\(z = \mu + \epsilon \cdot \sigma\)</span> guarantees that <span class=math>\(\mathbf{z}\sim \mathcal{N}(\boldsymbol\mu, \boldsymbol\sigma)\)</span> and at the same time it preserves the backpropagation of the gradient, since <span class=math>\(
+\frac{\partial \mathbf{z}}{\partial w} = \frac{\partial \boldsymbol\mu}{\partial w} + \boldsymbol\epsilon \cdot \frac{\partial \boldsymbol\sigma}{\partial w}
+\)</span> and both <span class=math>\(\boldsymbol\mu\)</span> and <span class=math>\(\boldsymbol\sigma\)</span> are deterministically computed as shown above.</p><p>Similarly, <span class=math>\(q_\vartheta(\mathbf{y}|\mathbf{x})\)</span> is exemplified by the following snippet:</p><pre><code class=language-python>class Classifier(nn.Module):
+    def __init__(self, input_size,num_classes):
+        super(Decoder, self).__init__()
+
+        self.linear_layer = nn.Linear(input_size, 2*latent_size)
+        nn.init.xavier_normal_(self.layer.weight)
+      
+        self.softmax = nn.Softmax(dim=-1)
+        
+    def forward(self, x):
+        return self.softmax(self.linear_layer(x))
+</code></pre><p>Notice that, differently from the previous case, within this class we directly output a probability distribution <span class=math>\(q_\vartheta(\mathbf{y}|\mathbf{x})\)</span>, rather than a sample <span class=math>\(\mathbf{y} \sim q_\vartheta(\cdot|\mathbf{x})\)</span>. The reason for this choice is that no reparameterization trick is possible for a discrete distribution that preserves backpropagation. However, this does not prevent us from averaging over all possible samples, as we shall see later.</p><p>What is the relationship between the encoders and the decoder? We can observe that</p><p><span class=math>\(
+\begin{split}
+\log p(\mathbf{x}) \geq & \mathbb{E}_{q_\phi(\mathbf{z},\mathbf{y}| \mathbf{x})}\left[\log p_\theta(\mathbf{x}| \mathbf{z}) + \log p(\mathbf{z}) + \log p(\mathbf{y}) - \log q_\phi(\mathbf{z},\mathbf{y}| \mathbf{x})\right] \\
+= & \sum_\mathbf{y} \mathbb{E}_{q_\varphi(\mathbf{z}| \mathbf{x},\mathbf{y})}\Bigg[ q_\vartheta(\mathbf{y}| \mathbf{x})\bigg(\log p_\theta(\mathbf{x}| \mathbf{z}) + \log p(\mathbf{y}) - \log q_\vartheta(\mathbf{y}| \mathbf{x})\bigg) \\
+& \qquad \qquad + \log p(\mathbf{z}) - \log q_\varphi(\mathbf{z}| \mathbf{x},\mathbf{y})\Bigg]
+\end{split}
+\)</span>
+We call the right-hand side of the equation the <em>Evidence Lower Bound</em> (<em>ELBO</em>). It turns out that, optimizing this equation with respect to <span class=math>\(\phi, \theta\)</span> corresponds to optimizing <span class=math>\(\log p(\mathbf{x})\)</span> as well. Thus, we can specify the loss <span class=math>\(\ell(\mathit{x})\)</span> as the negative of the <em>ELBO</em> and exploit a gradient-based optimization strategy. The main difference with respect to directly optimizing eq. (<span class=math>\(\ref{average}\)</span>) is that the <em>ELBO</em> is tractable. In fact, we can rewrite it as</p><p><span class=math>\(\begin{split}
+\ell(\mathbf{x})= & - \sum_\mathbf{y} \mathbb{E}_{\boldsymbol\epsilon\sim \mathcal{N}(\mathbf{0},I_K)}\Bigg[ q_\vartheta(\mathbf{y}| \mathbf{x})\bigg(\log p_\theta(\mathbf{x}| \mathbf{z}(\boldsymbol\epsilon, \mathbf{x},\mathbf{y})) + \log p(\mathbf{y}) - \log q_\vartheta(\mathbf{y}| \mathbf{x})\bigg) \\
+& \qquad \qquad + \log p(\mathbf{z}(\boldsymbol\epsilon, \mathbf{x},\mathbf{y})) - \log q_\varphi(\mathbf{z}(\boldsymbol\epsilon, \mathbf{x},\mathbf{y})| \mathbf{x},\mathbf{y})\Bigg]
+\end{split}\)</span>
+where <span class=math>\(\mathbf{z}(\boldsymbol\epsilon, \mathbf{x},\mathbf{y}) = \boldsymbol\mu_\varphi(\mathbf{x},\mathbf{y}) + \boldsymbol\epsilon \cdot \sigma_\varphi(\mathbf{x},\mathbf{y})\)</span> represents the <span class=math>\(\mathbf{z}\)</span> component in the output of <code>Decoder_z</code> and
+<span class=math>\(q_{\vartheta}(\mathbf{y}| \mathbf{x})\)</span> represents the output of <code>Classifier</code>.</p><p>By analysing the above equation we can observe the following:</p><ul><li><p>Since <span class=math>\(q_\vartheta(\mathbf{y}| \mathbf{x}) = \prod_{j=1}^C \pi_{\vartheta,j}(\mathbf{x})^{y_j}\)</span> and <span class=math>\(\mathbf{y}\)</span> ranges over all possible classes, we can simplify the first part of the right-hand side of the equation with <span class=math>\(\sum_{j = 1}^C \pi_{\vartheta,j}(\mathbf{x})\bigg(p_\theta(\mathbf{x}| \mathbf{z}(\epsilon,\mathbf{x},\mathbf{y}), \mathbf{e}_j) + \log \pi_j - \log \pi_{\vartheta,j}(\mathbf{x})\bigg)\)</span>, where <span class=math>\(\mathbf{e}_j\)</span> is the vector of all zeros except for position <span class=math>\(j\)</span> and <span class=math>\(\pi_{\vartheta,j}(\mathbf{x})\)</span> is the <span class=math>\(j\)</span>-th component of <span class=math>\(\pi_{\vartheta}(\mathbf{x})\)</span>.</p></li><li><p>Further, by exploiting the definitions, <span class=math>\(\mathbb{E}_{\boldsymbol\epsilon\sim \mathcal{N}(\mathbf{0},I_K)}\left[\log p(\mathbf{z}(\boldsymbol\epsilon, \mathbf{x},\mathbf{y})) - \log q_\varphi(\mathbf{z}(\boldsymbol\epsilon, \mathbf{x},\mathbf{y})| \mathbf{x},\mathbf{y})\right] = \sum_{k} \Bigg(\log \sigma_{\varphi,k}(\mathbf{x},\mathbf{y}) + 1 - \sigma_{\varphi,k}(\mathbf{x},\mathbf{y}) - \boldsymbol\mu_{\varphi,k}(\mathbf{x},\mathbf{y})^2\Bigg)\)</span> and we see that the only source of nondeterminism is given by the component that computes the log-likelihood.</p></li></ul><p>To summarize, the loss for an element <span class=math>\(\mathbf{x} \in U\)</span> can be fully specified as follows:</p><p><span class=math>\[\begin{split}
+\ell(\mathbf{x})= & \sum_{j = 1}^C \pi_{\vartheta,j}(\mathbf{x})\left(\log \pi_{\vartheta,j}(\mathbf{x}) - \log \pi_j \right) \\
+& - \mathbb{E}_{\boldsymbol\epsilon\sim \mathcal{N(\mathbf{0},I_K)}}\left[\sum_{j = 1}^C \pi_{\vartheta,j}(\mathbf{x})p_\theta(\mathbf{x}| \mathbf{z}(\boldsymbol\epsilon,\mathbf{x},\mathbf{e}_j), \mathbf{e}_j)\right]\\
+& - \sum_{j = 1}^C \sum_{k} \Bigg(\log \sigma_{\varphi,k}(\mathbf{x},\mathbf{e}_j) + 1 - \sigma_{\varphi,k}(\mathbf{x},\mathbf{e}_j) - \mu_{\varphi,k}(\mathbf{x},\mathbf{e}_j)^2\Bigg)
+\end{split}\]</span></p><p>The code snippet illustrating <span class=math>\(\ell(\mathbf{x})\)</span> in PyTorch is the following.</p><pre><code class=language-python>def unsupervised_loss(x,encoder,decoder,classifier,num_classes,y_prior=1):
+    y_q = classifier(x)
+    kld_cat = torch.mean(torch.sum(y_q*(torch.exp(y_q) - torch.log(y_prior)),-1),-1)  
+    
+    kld_norm = 0
+    e = torch.zeros(y_q.size()).to(x.device)
+    
+    prob_e = []
+    for j in range(num_classes):
+        e[:,j] = 1.
+        z, mu_q, logvar_q = encoder(x,e)
+        kld_norm += torch.sum(0.5 * (-logvar_q + torch.exp(logvar_q) + mu_q**2 - 1)
+        prob_e.append(decoder(z))
+        e[:,j] = 0.
+		
+		kld_norm = torch.mean(kld_norm, -1)
+
+    prob_e = torch.floatTensor(log_prob_e)
+    prob_x = torch.matmul(llk_e,y_q).squeeze()
+    
+    loss = nn.BCELoss()
+    llk = loss(prob_x,x)
+    
+    return llk + kld_cat + kld_norm
+</code></pre><p>Here, since <code>Decoder</code> provides a probability distribution, the loss is the negative log likelihood. Again, we are assuming $\mathbf{x}$ binary and the underlying probability is bernoullian on each feature.</p><h2 id=supervised-examples>Supervised examples</h2><p>The case <span class=math>\((\mathbf{x},\mathbf{y})\in S\)</span> rensembles the unsupervised case, but with a major difference. For the labelled case, the joint probability <span class=math>\(p(\mathbf{x},\mathbf{y},\mathbf{z})\)</span> is decomposed as <span class=math>\(p_\theta(\mathbf{x},\mathbf{y},\mathbf{z}) = q_{\vartheta}(\mathbf{y}|\mathbf{x})p_\theta(\mathbf{x}|\mathbf{z})p(\mathbf{z})\)</span>. In practice, we consider here a discriminative setting where the <code>Classifier</code> component as a part of the decoder. This is different from the unsupervised case, where <span class=math>\(\mathbf{y}\)</span> was considered a latent variable which encoded latent information from $\mathbf{x}$ in a generative setting.</p><p>As a consequence, the joint likelihood can be approximated as</p><p><span class=math>\[\begin{split}
+\log p(\mathbf{x},\mathbf{y}) \geq & \mathbb{E}_{q_\varphi(\mathbf{z}| \mathbf{x},\mathbf{y})}\Bigg[\log p_\theta(\mathbf{x}| \mathbf{z}) + \log q_\vartheta(\mathbf{y}|\mathbf{x}) + \log p(\mathbf{z}) - \log q_\varphi(\mathbf{z}| \mathbf{x},\mathbf{y})\Bigg]
+\end{split}\]</span></p><p>By rearranging the formulas, we obtain the loss term for the supervised case:</p><p><span class=math>\[\begin{split}\ell(\mathbf{x},\mathbf{y}) = & \mathbb{E}_{\boldsymbol\epsilon\sim \mathcal{N}(0,1)}\Bigg[\log p_\theta(\mathbf{x}| \mathbf{z}(\boldsymbol\epsilon,\mathbf{x}, \mathbf{y}))\Bigg] \\ & + \sum_{j=1}^C y_j \log \pi_{\vartheta,j}(\mathbf{x}) \\& + \sum_{k} \Bigg(\log \sigma_{\varphi,k}(\mathbf{x},\mathbf{y}) + 1 - \sigma_{\varphi,k}(\mathbf{x},\mathbf{y}) - \mu_{\varphi,k}(\mathbf{x},\mathbf{y})^2\Bigg)\end{split}\]</span></p><p>The corresponding example implementation:</p><pre><code class=language-python>def supervised_loss(x,y,encoder,decoder,classifier):    
+    z, mu_q, logvar_q = encoder(x,y)
+    kld_norm = torch.mean(torch.sum(0.5 * (-logvar_q + torch.exp(logvar_q) + mu_q**2 - 1),-1)
+
+    prob_x = decoder(x)     
+    loss = nn.BCELoss()
+    llk = loss(prob_x,x)
+    
+    y_q = classifier(x)
+    loss = CrossEntropyLoss(dim=-1)
+    llk_cat = loss(y_q,y)
+                          
+    return llk + llk_cat + kld_norm    
+</code></pre><p>Other interpretations for the supervised case are possible: see, e.g. the treatment in <a href=http://bjlkeng.github.io/posts/semi-supervised-learning-with-variational-autoencoders/>Brian Keng's blog</a>. However, I feel that separating the supervised and the unsupervised case and arranging the derivations accordingly is more intuitive.</p><h2 id=wrapping-up>Wrapping up</h2><p>We can finally combine all the above and devise a model for semi-supervised training:</p><pre><code class=language-python>class SSVAE(nn.Module):
+    def __init__(self,input_size,num_classes,latent_size, y_prior = 1):
+        self.input_size = input_size
+        self.num_classes = num_classes
+        self.latent_size = latent_size
+        
+        self.y_prior = y_prior
+        
+        self.encoder = Encoder(input_size,num_classes,latent_size)
+        self.decoder = Decoder(latent_size,input_size)
+        self.classifier = Classifier(input_size, num_classes)
+        
+        llk_loss = nn.BCELoss()
+        cat_loss = nn.CrossEntropyLoss()
+
+    def unsupervised_loss(self, x):
+        y_q = self.classifier(x)
+        kld_cat = torch.mean(torch.sum(y_q*(torch.log(y_q) - torch.log(self.y_prior)),-1),-1)  
+
+        kld_norm = 0
+        e = torch.zeros(y_q.size()).to(x.device)
+    
+        prob_e = []
+        for j in range(self.num_classes):
+            e[:,j] = 1.
+            z, mu_q, logvar_q = self.encoder(x,e)
+            kld_norm += torch.sum(0.5 * (-logvar_q + torch.exp(logvar_q) + mu_q**2 - 1)
+            prob_e.append(self.decoder(z))
+            e[:,j] = 0.
+        
+        kld_norm = torch.mean(kld_norm, -1))
+
+        prob_e = torch.floatTensor(log_prob_e)
+        prob_x = torch.matmul(llk_e,y_q).squeeze()
+    
+        llk = llk_loss(prob_x,x)
+    
+        return llk + kld_cat + kld_norm
+        
+    def supervised_loss(self,x,y):
+        z, mu_q, logvar_q = self.encoder(x,y)
+        kld_norm = torch.mean(torch.sum(0.5 * (-logvar_q + torch.exp(logvar_q) + mu_q**2 - 1),-1)
+
+        prob_x = self.decoder(x)                          
+        llk = loss(prob_x,x)
+    
+        y_q = self.classifier(x)
+        llk_cat = cat_loss(y_q,y)
+                          
+        return llk + llk_cat + kld_norm    
+        
+    def forward(self, x, y = None, train = True)
+        if not train:
+            return self.classifier(x)
+        else:
+            if y is not None:
+                loss = self.supervised_loss(x,y)
+            else
+                loss = self.unsupervised_loss(x)
+            return loss
+</code></pre><p>We can observe that the model can be called in two modes: either in <code>train</code> mode or not. For the latter, it acts as a classifier and produces the class probabilities. In the training mode, on the other side, it computes either the supervised or the unsupervised, loss based on whether the data is labelled or not. The training procedure is quite straightforward as it just requires a <code>data_loader</code> capable of ranging over <span class=math>\(D\)</span>:</p><pre><code class=language-python>def train(data_loader,input_size, num_classes, latent_size, y_priors):
+    model = SSVAE(input_size,num_classes, latent_size)
+    
+    optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
+    
+    for batch_idx,(x,y) in enumerate(data_loader):
+        optimizer.zero_grad()
+        
+        loss = model(x,y)
+        loss.backward()
+        optimizer.step()
+</code></pre><h1 id=references>References</h1><p>[1] <a name=ref></a>Diederik P. Kingma, Danilo J. Rezende, Shakir Mohamed, Max Welling. <a href=https://arxiv.org/abs/1406.5298>Semi-supervised Learning with Deep Generative Models</a>. Advances in Neural Information Processing Systems 27 (<strong>NIPS 2014</strong>), Montreal</p></div><div class=article-tags><a class="badge badge-light" href=/tags/variational-autoencoders/>Variational Autoencoders</a>
+<a class="badge badge-light" href=/tags/generative-models/>Generative Models</a>
+<a class="badge badge-light" href=/tags/semi-supervised-learning/>Semi-Supervised Learning</a></div><div class="media author-card" itemscope itemtype=http://schema.org/Person><img class="portrait mr-3" src=/authors/admin/avatar_hu8375074e436655f11d269bf5e2b7af91_71251_250x250_fill_q90_lanczos_center.jpg itemprop=image alt=Avatar><div class=media-body><h5 class=card-title itemprop=name><a href=https://gmanco.github.io/>Giuseppe Manco</a></h5><h6 class=card-subtitle>Director of Research at the Italian National Research Council</h6><p class=card-text itemprop=description>His research interests include User Profiling and Behavioral Modeling, Social Network Analysis, Information Propagation and Diffusion, Recommender Systems, Machine Learning for Cybersecurity.</p><ul class=network-icon aria-hidden=true><li><a itemprop=sameAs href=/#contact><i class="fas fa-envelope"></i></a></li><li><a itemprop=sameAs href=https://twitter.com/beman70 target=_blank rel=noopener><i class="fab fa-twitter"></i></a></li><li><a itemprop=sameAs href=https://www.linkedin.com/in/giuseppe-manco-89b47123/ target=_blank rel=noopener><i class="fab fa-linkedin"></i></a></li><li><a itemprop=sameAs href="https://scholar.google.com/citations?user=F-NXHA8AAAAJ" target=_blank rel=noopener><i class="ai ai-google-scholar"></i></a></li><li><a itemprop=sameAs href=https://orcid.org/0000-0001-9672-3833 target=_blank rel=noopener><i class="ai ai-orcid"></i></a></li><li><a itemprop=sameAs href=https://www.researchgate.net/profile/Giuseppe_Manco3 target=_blank rel=noopener><i class="ai ai-researchgate"></i></a></li><li><a itemprop=sameAs href=https://github.com/gmanco target=_blank rel=noopener><i class="fab fa-github"></i></a></li></ul></div></div><div class=article-widget><div class=hr-light></div><h3>Related</h3><ul><li><a href=/publication/sachdeva-2019/>Sequential Variational Autoencoders for Collaborative Filtering</a></li><li><a href=/publication/barbieri-2017/>Survival Factorization on Diffusion Networks</a></li><li><a href=/publication/barbieri-2014-a/>Who to follow and why: link prediction with explanations</a></li><li><a href=/publication/barbieri-2014/>Probabilistic Approaches to Recommendations</a></li><li><a href=/publication/barbieri-2016/>Efficient Methods for Influence-Based Network-Oblivious Community Detection</a></li></ul></div></div></article><script src=/js/mathjax-config.js></script><script src=https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin=anonymous></script><script src=https://cdnjs.cloudflare.com/ajax/libs/jquery.imagesloaded/4.1.4/imagesloaded.pkgd.min.js integrity="sha256-lqvxZrPLtfffUl2G/e7szqSvPBILGbwmsGE1MKlOi0Q=" crossorigin=anonymous></script><script src=https://cdnjs.cloudflare.com/ajax/libs/jquery.isotope/3.0.6/isotope.pkgd.min.js integrity="sha256-CBrpuqrMhXwcLLUd5tvQ4euBHCdh7wGlDfNz8vbu/iI=" crossorigin=anonymous></script><script src=https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.2.5/jquery.fancybox.min.js integrity="sha256-X5PoE3KU5l+JcX+w09p/wHl9AzK333C4hJ2I9S5mD4M=" crossorigin=anonymous></script><script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/highlight.min.js integrity="sha256-aYTdUrn6Ow1DDgh5JTc3aDGnnju48y/1c8s1dgkYPQ8=" crossorigin=anonymous></script><script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/languages/r.min.js></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=TeX-AMS_CHTML-full" integrity="sha256-GhM+5JHb6QUzOQPXSJLEWP7R73CbkisjzK5Eyij4U9w=" crossorigin=anonymous async></script><script src=https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.2.0/leaflet.js integrity="sha512-lInM/apFSqyy1o6s89K4iQUKg6ppXEgsVxT35HbzUupEVRh2Eu9Wdl4tHj7dZO0s1uvplcYGmt3498TtHq+log==" crossorigin=anonymous></script><script>hljs.initHighlightingOnLoad();</script><script>const search_index_filename="/index.json";const i18n={'placeholder':"Search...",'results':"results found",'no_results':"No results found"};const content_type={'post':"Posts",'project':"Projects",'publication':"Publications",'talk':"Talks"};</script><script id=search-hit-fuse-template type=text/x-template>
+      <div class="search-hit" id="summary-{{key}}">
+      <div class="search-hit-content">
+        <div class="search-hit-name">
+          <a href="{{relpermalink}}">{{title}}</a>
+          <div class="article-metadata search-hit-type">{{type}}</div>
+          <p class="search-hit-description">{{snippet}}</p>
+        </div>
+      </div>
+      </div>
+    </script><script src=https://cdnjs.cloudflare.com/ajax/libs/fuse.js/3.2.1/fuse.min.js integrity="sha256-VzgmKYmhsGNNN4Ph1kMW+BjoYJM2jV5i4IlFoeZA9XI=" crossorigin=anonymous></script><script src=https://cdnjs.cloudflare.com/ajax/libs/mark.js/8.11.1/jquery.mark.min.js integrity="sha256-4HLtjeVgH0eIB3aZ9mLYF6E8oU5chNdjU6p6rrXpl9U=" crossorigin=anonymous></script><script src=/js/academic.min.16bbb3750feb7244c9bc409a5a4fe678.js></script><div class=container><footer class=site-footer><p class=powered-by>&copy; 2026 Giuseppe Manco &middot;
+Powered by the
+<a href=https://sourcethemes.com/academic/ target=_blank rel=noopener>Academic theme</a> for
+<a href=https://gohugo.io target=_blank rel=noopener>Hugo</a>.
+<span class=float-right aria-hidden=true><a href=# id=back_to_top><span class=button_icon><i class="fas fa-chevron-up fa-2x"></i></span></a></span></p></footer></div><div id=modal class="modal fade" role=dialog><div class=modal-dialog><div class=modal-content><div class=modal-header><h5 class=modal-title>Cite</h5><button type=button class=close data-dismiss=modal aria-label=Close>
+<span aria-hidden=true>&times;</span></button></div><div class=modal-body><pre><code class="tex hljs"></code></pre></div><div class=modal-footer><a class="btn btn-outline-primary my-1 js-copy-cite" href=# target=_blank><i class="fas fa-copy"></i>Copy</a>
+<a class="btn btn-outline-primary my-1 js-download-cite" href=# target=_blank><i class="fas fa-download"></i>Download</a><div id=modal-error></div></div></div></div></div></body></html>

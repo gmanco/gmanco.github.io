@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Variational Autoencoders | Giuseppe Manco</title><link>https://gmanco.github.io/tags/variational-autoencoders/</link><atom:link href="https://gmanco.github.io/tags/variational-autoencoders/index.xml" rel="self" type="application/rss+xml"/><description>Variational Autoencoders</description><generator>Source Themes Academic (https://sourcethemes.com/academic/)</generator><language>en-us</language><copyright>© 2026 Giuseppe Manco</copyright><lastBuildDate>Sat, 01 Jan 2022 00:00:00 +0000</lastBuildDate><image><url>https://gmanco.github.io/img/manco.jpg</url><title>Variational Autoencoders</title><link>https://gmanco.github.io/tags/variational-autoencoders/</link></image><item><title>Machine learning methods for generating high dimensional discrete datasets</title><link>https://gmanco.github.io/publication/manco-2022/</link><pubDate>Sat, 01 Jan 2022 00:00:00 +0000</pubDate><guid>https://gmanco.github.io/publication/manco-2022/</guid><description/></item><item><title>Adversarial Regularized Reconstruction for Anomaly Detection and Generation</title><link>https://gmanco.github.io/publication/liguori-2021/</link><pubDate>Fri, 01 Jan 2021 00:00:00 +0000</pubDate><guid>https://gmanco.github.io/publication/liguori-2021/</guid><description/></item><item><title>Some notes on the Semi-Supervised Learning of Variational Autoencoders</title><link>https://gmanco.github.io/post/on-semisupervised-vae/</link><pubDate>Tue, 10 Sep 2019 18:10:09 +0200</pubDate><guid>https://gmanco.github.io/post/on-semisupervised-vae/</guid><description>&lt;p&gt;In what follows I&#39;ll try to explain my basic understanding and interepretation of the semi-supervised framework based on Variational Autoencoders, as described in &lt;a href=&#34;#ref&#34;&gt;[1]&lt;/a&gt;. I shall assume a vector notation where bold symbols $\mathbf{a}$ represent vectors, whose $j$-th component can be represented as $a_j$.&lt;/p&gt;
+&lt;p&gt;The starting point of the framework is to consider a dataset &lt;span class=&#34;math&#34;&gt;\(D = S \cup U\)&lt;/span&gt;, where:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;span class=&#34;math&#34;&gt;\(S = \{(\mathbf{x}_1, \mathbf{y}_1), \ldots, (\mathbf{x}_n, \mathbf{y}_n)\}\)&lt;/span&gt;,&lt;br&gt;&lt;/li&gt;
+&lt;li&gt;&lt;span class=&#34;math&#34;&gt;\(U = \{\mathbf{x}_{n+1}, \ldots, \mathbf{x}_{n+m}\}\)&lt;/span&gt;,&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;with &lt;span class=&#34;math&#34;&gt;\(\mathbf{x}_i \in \mathbb{R}^N\)&lt;/span&gt; and &lt;span class=&#34;math&#34;&gt;\(\mathbf{y}_i \in \{0,1\}^C\)&lt;/span&gt; represents a one-hot encoding of a class in &lt;span class=&#34;math&#34;&gt;\(\{1, \ldots, C\}\)&lt;/span&gt;.&lt;/p&gt;
+&lt;p&gt;The basic assumption of variational autoencoders is that data is generated according to a density function &lt;span class=&#34;math&#34;&gt;\(p_\theta(\mathbf{x}| \mathbf{z})\)&lt;/span&gt;, where &lt;span class=&#34;math&#34;&gt;\(\mathbf{z}\in \mathbb{R}^K\)&lt;/span&gt; is a latent variables governing the distribution of &lt;span class=&#34;math&#34;&gt;\(\mathbf{x}\)&lt;/span&gt;. &lt;span class=&#34;math&#34;&gt;\(\theta\)&lt;/span&gt; represents a model parameter. The above density function can be modeled through a Neural network: thus &lt;span class=&#34;math&#34;&gt;\(\theta\)&lt;/span&gt; represents all the network weights. An example PyTorch snippet, where the density is be modeled as a softmax over a simple linear layer, is illustrated below.&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&#34;language-python&#34;&gt;import torch
+import torch.nn as nn
+class Decoder(nn.Module):
+def __init__(self, latent_size,num_classes,out_size):
+super(Decoder, self).__init__()
+self.linear_layer = nn.Linear(latent_size + num_classes, out_size)
+nn.init.xavier_normal_(self.layer.weight)
+self.activation = nn.Sigmoid(dim=-1)
+def forward(self, z):
+return self.activation(self.linear_layer(z))
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Here, we are assuming $\mathbf{x}$ binary and consequently the reconstruction exploits a bernoullian distribution for each feature.&lt;/p&gt;
+&lt;p&gt;Let&#39;s see how the generative framework can model the likelihood of the data and help us develop a semi-supervised classifier.&lt;/p&gt;
+&lt;h2 id=&#34;unsupervised-examples&#34;&gt;Unsupervised examples&lt;/h2&gt;
+&lt;p&gt;First, let us consider &lt;span class=&#34;math&#34;&gt;\(\mathbf{x}\in U\)&lt;/span&gt;. When &lt;span class=&#34;math&#34;&gt;\(\mathbf{y}\)&lt;/span&gt; is unknown, we can consider it as a latent variable as well. Both &lt;span class=&#34;math&#34;&gt;\(\mathbf{y}\)&lt;/span&gt; and &lt;span class=&#34;math&#34;&gt;\(\mathbf{z}\)&lt;/span&gt; assume a prior distribution, given by&lt;/p&gt;
+&lt;p&gt;&lt;span class=&#34;math&#34;&gt;\[\begin{split}
+\mathbf{z} \sim &amp; \mathcal{N}(\mathbf{0},I_K)\\
+\mathbf{y} \sim &amp; \mathit{Cat}(\boldsymbol\pi)
+\end{split}\]&lt;/span&gt;&lt;/p&gt;
+&lt;p&gt;Here, &lt;span class=&#34;math&#34;&gt;\(\boldsymbol\pi\)&lt;/span&gt; is a prior multinomial distribution over &lt;span class=&#34;math&#34;&gt;\(\{1, \ldots, C\}\)&lt;/span&gt;.&lt;/p&gt;
+&lt;p&gt;In such a case, we can extend the generative setting where data samples $\mathbf{x}$ are assumed to be generated by the conditional &lt;span class=&#34;math&#34;&gt;\(p_\theta(\mathbf{x}| \mathbf{z},\mathbf{y})\)&lt;/span&gt; through the relationship&lt;/p&gt;
+&lt;p&gt;&lt;span class=&#34;math&#34;&gt;\[
+\begin{equation}\label{average}\tag{1}
+p(\mathbf{x}) = \int p_\theta(\mathbf{x}| \mathbf{z}, \mathbf{y}) p(\mathbf{z})p(\mathbf{y}) \mathrm{d} \mathbf{z} \mathrm{d} \mathbf{y}
+\end{equation}
+\]&lt;/span&gt;&lt;/p&gt;
+&lt;p&gt;In principle, the &lt;span class=&#34;math&#34;&gt;\(\theta\)&lt;/span&gt; parameter can be chosen to maximize the evidence on &lt;span class=&#34;math&#34;&gt;\(D\)&lt;/span&gt;, i.e. by optimizing &lt;span class=&#34;math&#34;&gt;\(\log p(\mathbf{x})\)&lt;/span&gt;. However, this approach is not feasible because it requires averaging over all possible &lt;span class=&#34;math&#34;&gt;\(\mathbf{z}\)&lt;/span&gt; pairs. We can approximate the likelihood by sampling a subset of $\mathbf{z}$ latent data points and then averaging over them. Again, this workaround exhibits the drawback that pure random sampling is exposed to high variance. The idea of Variational Autoencoders is to &amp;quot;guide&amp;quot; the sampling by exploiting the evidence: instead of freely choosing $\mathbf{z},\mathbf{y}$, we build a sampler &lt;span class=&#34;math&#34;&gt;\(q_\phi(\mathbf{z},\mathbf{y}|\mathbf{x})\)&lt;/span&gt; that tunes the probability of &lt;span class=&#34;math&#34;&gt;\(\mathbf{z},\mathbf{y}\)&lt;/span&gt; according to $\mathbf{x}$. In practice, $q_\phi$ &lt;em&gt;encodes&lt;/em&gt; the information regarding &lt;span class=&#34;math&#34;&gt;\(\mathbf{x}\)&lt;/span&gt; into the most probable &lt;span class=&#34;math&#34;&gt;\(\mathbf{z},\mathbf{y}\)&lt;/span&gt; latent variables.&lt;/p&gt;
+&lt;p&gt;We can factorize the decoder as &lt;span class=&#34;math&#34;&gt;\(q_\phi(\mathbf{z},\mathbf{y}| \mathbf{x}) = q_\varphi(\mathbf{z}|\mathbf{x},\mathbf{y})q_\vartheta(\mathbf{y}|\mathbf{x})\)&lt;/span&gt;, where&lt;/p&gt;
+&lt;p&gt;&lt;span class=&#34;math&#34;&gt;\[\begin{split}
+q_\varphi(\mathbf{z}|\mathbf{x},\mathbf{y}) \equiv &amp; \mathcal{N}(\mathbf{z}| \boldsymbol\mu_\varphi(\mathbf{x},\mathbf{y}), \boldsymbol\sigma_\varphi(\mathbf{x},\mathbf{y})\cdot I_K)\\
+q_\vartheta(\mathbf{y}|\mathbf{x}) \equiv &amp; \mathit{Cat}(\mathbf{y}|\boldsymbol\pi_\vartheta(\mathbf{x})),
+\end{split}\]&lt;/span&gt;&lt;/p&gt;
+&lt;p&gt;Here, the parameters &lt;span class=&#34;math&#34;&gt;\(\boldsymbol\mu_\varphi(\mathbf{x},\mathbf{y}), \boldsymbol\sigma_\varphi(\mathbf{x},\mathbf{y})\)&lt;/span&gt; and &lt;span class=&#34;math&#34;&gt;\(\boldsymbol\pi_\vartheta(\mathbf{x})\)&lt;/span&gt; represent neural functions parameterized by $\varphi$ and $\vartheta$, respectively.
+Again, a PyTorch snippet is given below, where the two encoders are exemplified. Concerning &lt;span class=&#34;math&#34;&gt;\(q_\varphi(\mathbf{z}|\mathbf{x}, \mathbf{y})\)&lt;/span&gt;, we have:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&#34;language-python&#34;&gt;class Encoder_z(nn.Module):
+def __init__(self, input_size,latent_size):
+super(Decoder, self).__init__()
+self.latent_size = latent_size
+self.linear_layer = nn.Linear(input_size, 2*latent_size)
+nn.init.xavier_normal_(self.linear_layer.weight)
+def _sample_latent(self, mu_q, logvar_q):
+var_q = torch.exp(logvar_q)
+epsilon = torch.randn(var_q.size(),requires_grad=False).to(var_q.device)
+return mu_q + epsilon*var_q
+def forward(self, x, y):
+input = torch.cat([x,y],dim=-1)
+temp_out = self.linear_layer(input)
+mu_q = temp_out[:, :self.latent_size]
+logvar_q = temp_out[:, self.latent_size:]
+z = self._sample_latent(mu_q, logvar_q)
+return z, mu_q, logvar_q
+​```
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The computation within this class is a variable &lt;span class=&#34;math&#34;&gt;\(\mathbf{z}\sim q_\varphi(\cdot |\mathbf{x},\mathbf{y})\)&lt;/span&gt;, as well as the parameters of the variational (gaussian) distribution &lt;span class=&#34;math&#34;&gt;\(\boldsymbol\mu\)&lt;/span&gt; and &lt;span class=&#34;math&#34;&gt;\(\boldsymbol\sigma\)&lt;/span&gt;.
+Here, we are exploiting the reparameterization trick: given a variable &lt;span class=&#34;math&#34;&gt;\(\boldsymbol\epsilon \sim \mathcal{N}(\mathbf{0},I_K)\)&lt;/span&gt;, the transformation &lt;span class=&#34;math&#34;&gt;\(z = \mu + \epsilon \cdot \sigma\)&lt;/span&gt; guarantees that &lt;span class=&#34;math&#34;&gt;\(\mathbf{z}\sim \mathcal{N}(\boldsymbol\mu, \boldsymbol\sigma)\)&lt;/span&gt; and at the same time it preserves the backpropagation of the gradient, since &lt;span class=&#34;math&#34;&gt;\(
+\frac{\partial \mathbf{z}}{\partial w} = \frac{\partial \boldsymbol\mu}{\partial w} + \boldsymbol\epsilon \cdot \frac{\partial \boldsymbol\sigma}{\partial w}
+\)&lt;/span&gt; and both &lt;span class=&#34;math&#34;&gt;\(\boldsymbol\mu\)&lt;/span&gt; and &lt;span class=&#34;math&#34;&gt;\(\boldsymbol\sigma\)&lt;/span&gt; are deterministically computed as shown above.&lt;/p&gt;
+&lt;p&gt;Similarly, &lt;span class=&#34;math&#34;&gt;\(q_\vartheta(\mathbf{y}|\mathbf{x})\)&lt;/span&gt; is exemplified by the following snippet:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&#34;language-python&#34;&gt;class Classifier(nn.Module):
+def __init__(self, input_size,num_classes):
+super(Decoder, self).__init__()
+self.linear_layer = nn.Linear(input_size, 2*latent_size)
+nn.init.xavier_normal_(self.layer.weight)
+self.softmax = nn.Softmax(dim=-1)
+def forward(self, x):
+return self.softmax(self.linear_layer(x))
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Notice that, differently from the previous case, within this class we directly output a probability distribution &lt;span class=&#34;math&#34;&gt;\(q_\vartheta(\mathbf{y}|\mathbf{x})\)&lt;/span&gt;, rather than a sample &lt;span class=&#34;math&#34;&gt;\(\mathbf{y} \sim q_\vartheta(\cdot|\mathbf{x})\)&lt;/span&gt;. The reason for this choice is that no reparameterization trick is possible for a discrete distribution that preserves backpropagation. However, this does not prevent us from averaging over all possible samples, as we shall see later.&lt;/p&gt;
+&lt;p&gt;What is the relationship between the encoders and the decoder? We can observe that&lt;/p&gt;
+&lt;p&gt;&lt;span class=&#34;math&#34;&gt;\(
+\begin{split}
+\log p(\mathbf{x}) \geq &amp; \mathbb{E}_{q_\phi(\mathbf{z},\mathbf{y}| \mathbf{x})}\left[\log p_\theta(\mathbf{x}| \mathbf{z}) + \log p(\mathbf{z}) + \log p(\mathbf{y}) - \log q_\phi(\mathbf{z},\mathbf{y}| \mathbf{x})\right] \\
+= &amp; \sum_\mathbf{y} \mathbb{E}_{q_\varphi(\mathbf{z}| \mathbf{x},\mathbf{y})}\Bigg[ q_\vartheta(\mathbf{y}| \mathbf{x})\bigg(\log p_\theta(\mathbf{x}| \mathbf{z}) + \log p(\mathbf{y}) - \log q_\vartheta(\mathbf{y}| \mathbf{x})\bigg) \\
+&amp; \qquad \qquad + \log p(\mathbf{z}) - \log q_\varphi(\mathbf{z}| \mathbf{x},\mathbf{y})\Bigg]
+\end{split}
+\)&lt;/span&gt;
+We call the right-hand side of the equation the &lt;em&gt;Evidence Lower Bound&lt;/em&gt; (&lt;em&gt;ELBO&lt;/em&gt;). It turns out that, optimizing this equation with respect to &lt;span class=&#34;math&#34;&gt;\(\phi, \theta\)&lt;/span&gt; corresponds to optimizing &lt;span class=&#34;math&#34;&gt;\(\log p(\mathbf{x})\)&lt;/span&gt; as well. Thus, we can specify the loss &lt;span class=&#34;math&#34;&gt;\(\ell(\mathit{x})\)&lt;/span&gt; as the negative of the &lt;em&gt;ELBO&lt;/em&gt; and exploit a gradient-based optimization strategy. The main difference with respect to directly optimizing eq. (&lt;span class=&#34;math&#34;&gt;\(\ref{average}\)&lt;/span&gt;) is that the &lt;em&gt;ELBO&lt;/em&gt; is tractable. In fact, we can rewrite it as&lt;/p&gt;
+&lt;p&gt;&lt;span class=&#34;math&#34;&gt;\(\begin{split}
+\ell(\mathbf{x})= &amp; - \sum_\mathbf{y} \mathbb{E}_{\boldsymbol\epsilon\sim \mathcal{N}(\mathbf{0},I_K)}\Bigg[ q_\vartheta(\mathbf{y}| \mathbf{x})\bigg(\log p_\theta(\mathbf{x}| \mathbf{z}(\boldsymbol\epsilon, \mathbf{x},\mathbf{y})) + \log p(\mathbf{y}) - \log q_\vartheta(\mathbf{y}| \mathbf{x})\bigg) \\
+&amp; \qquad \qquad + \log p(\mathbf{z}(\boldsymbol\epsilon, \mathbf{x},\mathbf{y})) - \log q_\varphi(\mathbf{z}(\boldsymbol\epsilon, \mathbf{x},\mathbf{y})| \mathbf{x},\mathbf{y})\Bigg]
+\end{split}\)&lt;/span&gt;
+where &lt;span class=&#34;math&#34;&gt;\(\mathbf{z}(\boldsymbol\epsilon, \mathbf{x},\mathbf{y}) = \boldsymbol\mu_\varphi(\mathbf{x},\mathbf{y}) + \boldsymbol\epsilon \cdot \sigma_\varphi(\mathbf{x},\mathbf{y})\)&lt;/span&gt; represents the &lt;span class=&#34;math&#34;&gt;\(\mathbf{z}\)&lt;/span&gt; component in the output of &lt;code&gt;Decoder_z&lt;/code&gt; and
+&lt;span class=&#34;math&#34;&gt;\(q_{\vartheta}(\mathbf{y}| \mathbf{x})\)&lt;/span&gt; represents the output of &lt;code&gt;Classifier&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;By analysing the above equation we can observe the following:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;Since &lt;span class=&#34;math&#34;&gt;\(q_\vartheta(\mathbf{y}| \mathbf{x}) = \prod_{j=1}^C \pi_{\vartheta,j}(\mathbf{x})^{y_j}\)&lt;/span&gt; and &lt;span class=&#34;math&#34;&gt;\(\mathbf{y}\)&lt;/span&gt; ranges over all possible classes, we can simplify the first part of the right-hand side of the equation with &lt;span class=&#34;math&#34;&gt;\(\sum_{j = 1}^C \pi_{\vartheta,j}(\mathbf{x})\bigg(p_\theta(\mathbf{x}| \mathbf{z}(\epsilon,\mathbf{x},\mathbf{y}), \mathbf{e}_j) + \log \pi_j - \log \pi_{\vartheta,j}(\mathbf{x})\bigg)\)&lt;/span&gt;, where &lt;span class=&#34;math&#34;&gt;\(\mathbf{e}_j\)&lt;/span&gt; is the vector of all zeros except for position &lt;span class=&#34;math&#34;&gt;\(j\)&lt;/span&gt; and &lt;span class=&#34;math&#34;&gt;\(\pi_{\vartheta,j}(\mathbf{x})\)&lt;/span&gt; is the &lt;span class=&#34;math&#34;&gt;\(j\)&lt;/span&gt;-th component of &lt;span class=&#34;math&#34;&gt;\(\pi_{\vartheta}(\mathbf{x})\)&lt;/span&gt;.&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Further, by exploiting the definitions, &lt;span class=&#34;math&#34;&gt;\(\mathbb{E}_{\boldsymbol\epsilon\sim \mathcal{N}(\mathbf{0},I_K)}\left[\log p(\mathbf{z}(\boldsymbol\epsilon, \mathbf{x},\mathbf{y})) - \log q_\varphi(\mathbf{z}(\boldsymbol\epsilon, \mathbf{x},\mathbf{y})| \mathbf{x},\mathbf{y})\right] = \sum_{k} \Bigg(\log \sigma_{\varphi,k}(\mathbf{x},\mathbf{y}) + 1 - \sigma_{\varphi,k}(\mathbf{x},\mathbf{y}) - \boldsymbol\mu_{\varphi,k}(\mathbf{x},\mathbf{y})^2\Bigg)\)&lt;/span&gt; and we see that the only source of nondeterminism is given by the component that computes the log-likelihood.&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;To summarize, the loss for an element &lt;span class=&#34;math&#34;&gt;\(\mathbf{x} \in U\)&lt;/span&gt; can be fully specified as follows:&lt;/p&gt;
+&lt;p&gt;&lt;span class=&#34;math&#34;&gt;\[\begin{split}
+\ell(\mathbf{x})= &amp; \sum_{j = 1}^C \pi_{\vartheta,j}(\mathbf{x})\left(\log \pi_{\vartheta,j}(\mathbf{x}) - \log \pi_j \right) \\
+&amp; - \mathbb{E}_{\boldsymbol\epsilon\sim \mathcal{N(\mathbf{0},I_K)}}\left[\sum_{j = 1}^C \pi_{\vartheta,j}(\mathbf{x})p_\theta(\mathbf{x}| \mathbf{z}(\boldsymbol\epsilon,\mathbf{x},\mathbf{e}_j), \mathbf{e}_j)\right]\\
+&amp; - \sum_{j = 1}^C \sum_{k} \Bigg(\log \sigma_{\varphi,k}(\mathbf{x},\mathbf{e}_j) + 1 - \sigma_{\varphi,k}(\mathbf{x},\mathbf{e}_j) - \mu_{\varphi,k}(\mathbf{x},\mathbf{e}_j)^2\Bigg)
+\end{split}\]&lt;/span&gt;&lt;/p&gt;
+&lt;p&gt;The code snippet illustrating &lt;span class=&#34;math&#34;&gt;\(\ell(\mathbf{x})\)&lt;/span&gt; in PyTorch is the following.&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&#34;language-python&#34;&gt;def unsupervised_loss(x,encoder,decoder,classifier,num_classes,y_prior=1):
+y_q = classifier(x)
+kld_cat = torch.mean(torch.sum(y_q*(torch.exp(y_q) - torch.log(y_prior)),-1),-1)
+kld_norm = 0
+e = torch.zeros(y_q.size()).to(x.device)
+prob_e = []
+for j in range(num_classes):
+e[:,j] = 1.
+z, mu_q, logvar_q = encoder(x,e)
+kld_norm += torch.sum(0.5 * (-logvar_q + torch.exp(logvar_q) + mu_q**2 - 1)
+prob_e.append(decoder(z))
+e[:,j] = 0.
+kld_norm = torch.mean(kld_norm, -1)
+prob_e = torch.floatTensor(log_prob_e)
+prob_x = torch.matmul(llk_e,y_q).squeeze()
+loss = nn.BCELoss()
+llk = loss(prob_x,x)
+return llk + kld_cat + kld_norm
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Here, since &lt;code&gt;Decoder&lt;/code&gt; provides a probability distribution, the loss is the negative log likelihood. Again, we are assuming $\mathbf{x}$ binary and the underlying probability is bernoullian on each feature.&lt;/p&gt;
+&lt;h2 id=&#34;supervised-examples&#34;&gt;Supervised examples&lt;/h2&gt;
+&lt;p&gt;The case &lt;span class=&#34;math&#34;&gt;\((\mathbf{x},\mathbf{y})\in S\)&lt;/span&gt; rensembles the unsupervised case, but with a major difference. For the labelled case, the joint probability &lt;span class=&#34;math&#34;&gt;\(p(\mathbf{x},\mathbf{y},\mathbf{z})\)&lt;/span&gt; is decomposed as &lt;span class=&#34;math&#34;&gt;\(p_\theta(\mathbf{x},\mathbf{y},\mathbf{z}) = q_{\vartheta}(\mathbf{y}|\mathbf{x})p_\theta(\mathbf{x}|\mathbf{z})p(\mathbf{z})\)&lt;/span&gt;. In practice, we consider here a discriminative setting where the &lt;code&gt;Classifier&lt;/code&gt; component as a part of the decoder. This is different from the unsupervised case, where &lt;span class=&#34;math&#34;&gt;\(\mathbf{y}\)&lt;/span&gt; was considered a latent variable which encoded latent information from $\mathbf{x}$ in a generative setting.&lt;/p&gt;
+&lt;p&gt;As a consequence, the joint likelihood can be approximated as&lt;/p&gt;
+&lt;p&gt;&lt;span class=&#34;math&#34;&gt;\[\begin{split}
+\log p(\mathbf{x},\mathbf{y}) \geq &amp; \mathbb{E}_{q_\varphi(\mathbf{z}| \mathbf{x},\mathbf{y})}\Bigg[\log p_\theta(\mathbf{x}| \mathbf{z}) + \log q_\vartheta(\mathbf{y}|\mathbf{x}) + \log p(\mathbf{z}) - \log q_\varphi(\mathbf{z}| \mathbf{x},\mathbf{y})\Bigg]
+\end{split}\]&lt;/span&gt;&lt;/p&gt;
+&lt;p&gt;By rearranging the formulas, we obtain the loss term for the supervised case:&lt;/p&gt;
+&lt;p&gt;&lt;span class=&#34;math&#34;&gt;\[\begin{split}\ell(\mathbf{x},\mathbf{y}) = &amp; \mathbb{E}_{\boldsymbol\epsilon\sim \mathcal{N}(0,1)}\Bigg[\log p_\theta(\mathbf{x}| \mathbf{z}(\boldsymbol\epsilon,\mathbf{x}, \mathbf{y}))\Bigg] \\ &amp; + \sum_{j=1}^C y_j \log \pi_{\vartheta,j}(\mathbf{x}) \\&amp; + \sum_{k} \Bigg(\log \sigma_{\varphi,k}(\mathbf{x},\mathbf{y}) + 1 - \sigma_{\varphi,k}(\mathbf{x},\mathbf{y}) - \mu_{\varphi,k}(\mathbf{x},\mathbf{y})^2\Bigg)\end{split}\]&lt;/span&gt;&lt;/p&gt;
+&lt;p&gt;The corresponding example implementation:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&#34;language-python&#34;&gt;def supervised_loss(x,y,encoder,decoder,classifier):
+z, mu_q, logvar_q = encoder(x,y)
+kld_norm = torch.mean(torch.sum(0.5 * (-logvar_q + torch.exp(logvar_q) + mu_q**2 - 1),-1)
+prob_x = decoder(x)
+loss = nn.BCELoss()
+llk = loss(prob_x,x)
+y_q = classifier(x)
+loss = CrossEntropyLoss(dim=-1)
+llk_cat = loss(y_q,y)
+return llk + llk_cat + kld_norm
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Other interpretations for the supervised case are possible: see, e.g. the treatment in &lt;a href=&#34;http://bjlkeng.github.io/posts/semi-supervised-learning-with-variational-autoencoders/&#34;&gt;Brian Keng&#39;s blog&lt;/a&gt;. However, I feel that separating the supervised and the unsupervised case and arranging the derivations accordingly is more intuitive.&lt;/p&gt;
+&lt;h2 id=&#34;wrapping-up&#34;&gt;Wrapping up&lt;/h2&gt;
+&lt;p&gt;We can finally combine all the above and devise a model for semi-supervised training:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&#34;language-python&#34;&gt;class SSVAE(nn.Module):
+def __init__(self,input_size,num_classes,latent_size, y_prior = 1):
+self.input_size = input_size
+self.num_classes = num_classes
+self.latent_size = latent_size
+self.y_prior = y_prior
+self.encoder = Encoder(input_size,num_classes,latent_size)
+self.decoder = Decoder(latent_size,input_size)
+self.classifier = Classifier(input_size, num_classes)
+llk_loss = nn.BCELoss()
+cat_loss = nn.CrossEntropyLoss()
+def unsupervised_loss(self, x):
+y_q = self.classifier(x)
+kld_cat = torch.mean(torch.sum(y_q*(torch.log(y_q) - torch.log(self.y_prior)),-1),-1)
+kld_norm = 0
+e = torch.zeros(y_q.size()).to(x.device)
+prob_e = []
+for j in range(self.num_classes):
+e[:,j] = 1.
+z, mu_q, logvar_q = self.encoder(x,e)
+kld_norm += torch.sum(0.5 * (-logvar_q + torch.exp(logvar_q) + mu_q**2 - 1)
+prob_e.append(self.decoder(z))
+e[:,j] = 0.
+kld_norm = torch.mean(kld_norm, -1))
+prob_e = torch.floatTensor(log_prob_e)
+prob_x = torch.matmul(llk_e,y_q).squeeze()
+llk = llk_loss(prob_x,x)
+return llk + kld_cat + kld_norm
+def supervised_loss(self,x,y):
+z, mu_q, logvar_q = self.encoder(x,y)
+kld_norm = torch.mean(torch.sum(0.5 * (-logvar_q + torch.exp(logvar_q) + mu_q**2 - 1),-1)
+prob_x = self.decoder(x)
+llk = loss(prob_x,x)
+y_q = self.classifier(x)
+llk_cat = cat_loss(y_q,y)
+return llk + llk_cat + kld_norm
+def forward(self, x, y = None, train = True)
+if not train:
+return self.classifier(x)
+else:
+if y is not None:
+loss = self.supervised_loss(x,y)
+else
+loss = self.unsupervised_loss(x)
+return loss
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;We can observe that the model can be called in two modes: either in &lt;code&gt;train&lt;/code&gt; mode or not. For the latter, it acts as a classifier and produces the class probabilities. In the training mode, on the other side, it computes either the supervised or the unsupervised, loss based on whether the data is labelled or not. The training procedure is quite straightforward as it just requires a &lt;code&gt;data_loader&lt;/code&gt; capable of ranging over &lt;span class=&#34;math&#34;&gt;\(D\)&lt;/span&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&#34;language-python&#34;&gt;def train(data_loader,input_size, num_classes, latent_size, y_priors):
+model = SSVAE(input_size,num_classes, latent_size)
+optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
+for batch_idx,(x,y) in enumerate(data_loader):
+optimizer.zero_grad()
+loss = model(x,y)
+loss.backward()
+optimizer.step()
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1 id=&#34;references&#34;&gt;References&lt;/h1&gt;
+&lt;p&gt;[1] &lt;a name=&#34;ref&#34;&gt;&lt;/a&gt;Diederik P. Kingma, Danilo J. Rezende, Shakir Mohamed, Max Welling. &lt;a href=&#34;https://arxiv.org/abs/1406.5298&#34;&gt;Semi-supervised Learning with Deep Generative Models&lt;/a&gt;. Advances in Neural Information Processing Systems 27 (&lt;strong&gt;NIPS 2014&lt;/strong&gt;), Montreal&lt;/p&gt;</description></item><item><title>Sequential Variational Autoencoders for Collaborative Filtering</title><link>https://gmanco.github.io/publication/sachdeva-2019/</link><pubDate>Mon, 01 Jan 2018 00:00:00 +0000</pubDate><guid>https://gmanco.github.io/publication/sachdeva-2019/</guid><description/></item></channel></rss>
